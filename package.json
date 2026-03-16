@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "bot-core": "file:../../bot-core",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "express": "^5.2.1"
   }
 }
