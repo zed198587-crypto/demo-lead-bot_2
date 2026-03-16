@@ -7,8 +7,9 @@
     "start": "node src/app.js"
   },
   "dependencies": {
-    "bot-core": "file:../../bot-core",
+    "better-sqlite3": "^11.7.0",
     "dotenv": "^16.4.7",
-    "express": "^5.2.1"
+    "express": "^4.21.2",
+    "node-telegram-bot-api": "^0.66.0"
   }
 }
