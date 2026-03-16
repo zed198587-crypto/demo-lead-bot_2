@@ -1,0 +1,13 @@
+{
+  "name": "survey-lead-bot",
+  "version": "1.0.0",
+  "main": "src/app.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/app.js"
+  },
+  "dependencies": {
+    "bot-core": "file:../../bot-core",
+    "dotenv": "^16.4.7"
+  }
+}
