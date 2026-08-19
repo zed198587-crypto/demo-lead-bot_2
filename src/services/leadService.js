@@ -1,4 +1,4 @@
-const { formatters } = require("../../bot-core");
+const { formatters } = require("../../core");
 
 function createLeadService({ leadRepository }) {
   function saveLead({ telegramId, firstName, lastName, username, phone }) {

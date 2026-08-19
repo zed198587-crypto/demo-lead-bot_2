@@ -3,7 +3,7 @@ require("dotenv").config();
 
 const express = require("express");
 
-const { createBotApp } = require("../bot-core");
+const { createBotApp } = require("../core");
 const { registerLeadHandlers } = require("./handlers/leadHandlers");
 
 function registerAppHandlers({ bot, db, fsm, env }) {

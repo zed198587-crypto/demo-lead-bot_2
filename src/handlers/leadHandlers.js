@@ -1,4 +1,4 @@
-const { validators } = require("../../bot-core");
+const { validators } = require("../../core");
 const { botConfig } = require("../config/botConfig");
 const { LEAD_STATES, LEAD_STEPS } = require("../constants/leadStates");
 const { MENU_LABELS } = require("../constants/menuLabels");
