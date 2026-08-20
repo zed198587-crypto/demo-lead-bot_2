@@ -288,7 +288,8 @@ function registerLeadHandlers({ bot, db, fsm, env, app }) {
         `Телефон: ${lead.phone}`,
         `📅 Дата: ${bookingDate}`,
         `🕐 Время: ${bookingTime}`
-      ].join("\n")
+      ].join("\n"),
+      getMainKeyboardForUser(env.ADMIN_IDS[0])
     );
 
     return res.json({

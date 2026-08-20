@@ -120,11 +120,20 @@ function createLeadRepository(db) {
   }
 
   function clearAllLeads() {
-    const result = db.prepare(`
-      DELETE FROM leads
-    `).run();
+    const clearTransaction = db.transaction(() => {
+      const result = db.prepare(`
+        DELETE FROM leads
+      `).run();
 
-    return result.changes;
+      db.prepare(`
+        DELETE FROM sqlite_sequence
+        WHERE name = 'leads'
+      `).run();
+
+      return result.changes;
+    });
+
+    return clearTransaction();
   }
 
   function getLeadsByDateRange(fromDate, toDate) {
