@@ -1,17 +1,23 @@
 process.env.NTBA_FIX_350 = 1;
 require("dotenv").config();
+console.log(
+  "[env] BOOKING_WEB_APP_URL:",
+  process.env.BOOKING_WEB_APP_URL
+);
+const path = require("path");
 
 const express = require("express");
 
 const { createBotApp } = require("../core");
 const { registerLeadHandlers } = require("./handlers/leadHandlers");
 
-function registerAppHandlers({ bot, db, fsm, env }) {
+function registerAppHandlers({ bot, db, fsm, env, app }) {
   registerLeadHandlers({
     bot,
     db,
     fsm,
-    env
+    env,
+    app
   });
 }
 
@@ -20,6 +26,16 @@ function bootstrap() {
   // --- HTTP сервер для Render ---
   const app = express();
   const port = process.env.PORT || 10000;
+
+  const bookingWebPath = path.join(
+    __dirname,
+    "../web/booking"
+  );
+
+  app.use(
+    "/booking",
+    express.static(bookingWebPath)
+  );
 
   app.get("/", (req, res) => {
     res.send("Telegram demo bot is running.");
@@ -35,7 +51,9 @@ function bootstrap() {
 
   // --- запуск бота ---
   const { env } = createBotApp({
-    registerAppHandlers
+    registerAppHandlers,
+    app
+
   });
 
   console.log("[survey-lead-bot] started");

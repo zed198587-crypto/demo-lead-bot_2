@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  >
+
+  <title>Запись клиента</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <main class="booking-app">
+
+    <header class="app-header">
+      <h1>📅 Запись клиента</h1>
+      <p>Выберите дату и время</p>
+    </header>
+
+    <section class="calendar-section">
+
+      <div class="calendar-header">
+        <button id="prevMonth" class="month-button">‹</button>
+
+        <div id="monthTitle" class="month-title">
+          Август 2026
+        </div>
+
+        <button id="nextMonth" class="month-button">›</button>
+      </div>
+
+      <div class="weekdays">
+        <div>Пн</div>
+        <div>Вт</div>
+        <div>Ср</div>
+        <div>Чт</div>
+        <div>Пт</div>
+        <div>Сб</div>
+        <div>Вс</div>
+      </div>
+
+      <div id="calendar" class="calendar"></div>
+
+    </section>
+
+    <section class="selection-section">
+
+      <div class="selected-date">
+        <span class="selection-label">📅 Дата</span>
+        <span id="selectedDate">Дата не выбрана</span>
+      </div>
+
+      <div class="time-section">
+
+        <label for="bookingTime">
+          🕐 Время
+        </label>
+
+        <input
+          type="time"
+          id="bookingTime"
+          name="bookingTime"
+        >
+
+      </div>
+
+    </section>
+
+    <button
+      id="confirmButton"
+      class="confirm-button"
+      disabled
+    >
+      ✅ Подтвердить запись
+    </button>
+
+  </main>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>

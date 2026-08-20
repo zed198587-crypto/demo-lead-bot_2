@@ -11,10 +11,11 @@ function createLeadService({ leadRepository }) {
     });
   }
 
-  function saveBooking(leadId, bookingText) {
+  function saveBooking(leadId, bookingDate, bookingTime) {
     return leadRepository.updateBooking(
       leadId,
-      String(bookingText).trim()
+      bookingDate,
+      bookingTime
     );
   }
 
@@ -22,49 +23,82 @@ function createLeadService({ leadRepository }) {
     return leadRepository.getRecentLeads(limit);
   }
 
+  function listLeadsByDateRange(fromDate, toDate) {
+    return leadRepository.getLeadsByDateRange(
+      fromDate,
+      toDate
+    );
+  }
+
   function getLeadById(id) {
     return leadRepository.findLeadById(id);
   }
 
   function formatLeadForAdmin(lead) {
-    return [
-      "Новая заявка!",
-      "",
-      `ID: ${lead.id}`,
-      `Telegram ID: ${lead.telegram_id || "-"}`,
-      `Имя: ${lead.first_name || "-"}`,
-      `Фамилия: ${lead.last_name || "-"}`,
-      `Username: ${lead.username ? "@" + lead.username : "-"}`,
-      `Телефон: ${lead.phone}`,
-      `Создано: ${formatters.formatDateTime(lead.created_at)}`
-    ].join("\n");
-  }
+  const fullName = [lead.first_name, lead.last_name]
+    .filter(Boolean)
+    .join(" ");
+
+  const username = lead.username
+    ? `@${lead.username}`
+    : "Username не указан";
+
+  return [
+    `🆕 НОВАЯ ЗАЯВКА #${lead.id}`,
+    "",
+    `👤 ${fullName || "Имя не указано"}`,
+    `📱 ${username}`,
+    "",
+    `📞 ${lead.phone || "-"}`,
+    "",
+    `🕐 ${formatters.formatDateTime(lead.created_at)}`
+  ].join("\n");
+}
 
   function formatLeadsList(leads) {
-    if (!leads.length) {
-      return "Заявок пока нет.";
-    }
-
-    return leads
-      .map((lead) => {
-        const fullName = `${lead.first_name || "Без имени"} ${lead.last_name || ""}`.trim();
-
-        return [
-          `${lead.id}. ${fullName}`,
-          `Username: ${lead.username ? "@" + lead.username : "-"}`,
-          `Телефон: ${lead.phone}`,
-          `Заявка создана: ${formatters.formatDateTime(lead.created_at)}`,
-          `Клиент записан: ${lead.booking_text || "-"}`,
-          `Запись оформлена: ${lead.booked_at ? formatters.formatDateTime(lead.booked_at) : "-"}`
-        ].join("\n");
-      })
-      .join("\n\n");
+  if (!leads.length) {
+    return "📋 Заявок пока нет.";
   }
+
+  return [
+    "📋 ПОСЛЕДНИЕ ЗАЯВКИ",
+    "",
+    `Показано: ${leads.length}`,
+    "━━━━━━━━━━━━━━",
+    "",
+    ...leads.map((lead) => {
+      const fullName = [lead.first_name, lead.last_name]
+        .filter(Boolean)
+        .join(" ");
+
+      const username = lead.username
+        ? `@${lead.username}`
+        : "Username не указан";
+
+      const isBooked = Boolean(lead.booked_at);
+      const statusIcon = isBooked ? "🟢" : "🟡";
+
+      return [
+        `${statusIcon} #${lead.id} — ${fullName || "Без имени"}`,
+        `📱 ${username}`,
+        `📞 ${lead.phone || "-"}`,
+        `🕐 ${formatters.formatDateTime(lead.created_at)}`,
+        `📅 Запись: ${lead.booking_text || "не назначена"}`,
+        isBooked
+          ? `✅ Оформлена: ${formatters.formatDateTime(lead.booked_at)}`
+          : "⏳ Запись ещё не оформлена",
+        "",
+        "━━━━━━━━━━━━━━"
+      ].join("\n");
+    })
+  ].join("\n");
+}
 
   return {
     saveLead,
     saveBooking,
     listRecentLeads,
+    listLeadsByDateRange,
     getLeadById,
     formatLeadForAdmin,
     formatLeadsList

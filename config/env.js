@@ -29,7 +29,8 @@ const env = {
   BOT_MODE: process.env.BOT_MODE?.trim() || "polling",
   DB_PATH: process.env.DB_PATH?.trim() || path.join(process.cwd(), "data", "bot.sqlite"),
   ADMIN_IDS: parseAdminIds(process.env.ADMIN_IDS),
-  APP_ENV: process.env.APP_ENV?.trim() || "development"
+  APP_ENV: process.env.APP_ENV?.trim() || "development",
+  BOOKING_WEB_APP_URL: process.env.BOOKING_WEB_APP_URL?.trim() || ""
 };
 
 module.exports = {

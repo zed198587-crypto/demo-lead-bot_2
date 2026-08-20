@@ -5,7 +5,8 @@ function getMainKeyboard() {
     reply_markup: {
       keyboard: [
         [{ text: MENU_LABELS.SUBMIT_LEAD }],
-        [{ text: MENU_LABELS.SHOW_CONTACTS }, { text: MENU_LABELS.HELP }]
+        [{ text: MENU_LABELS.SHOW_CONTACTS }, { text: MENU_LABELS.HELP }],
+        [{ text: MENU_LABELS.REPORTS }]
       ],
       resize_keyboard: true,
       persistent: true

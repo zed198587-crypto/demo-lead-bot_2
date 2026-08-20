@@ -1,13 +1,13 @@
-const { CALLBACKS } = require("../constants/callbackData");
-
-function getLeadAdminKeyboard(leadId) {
+function getLeadAdminKeyboard(leadId, webAppUrl) {
   return {
     reply_markup: {
       inline_keyboard: [
         [
           {
-            text: "Записать",
-            callback_data: `${CALLBACKS.BOOK_LEAD_PREFIX}${leadId}`
+            text: "📅 Записать",
+            web_app: {
+              url: `${webAppUrl}?leadId=${leadId}`
+            }
           }
         ]
       ]

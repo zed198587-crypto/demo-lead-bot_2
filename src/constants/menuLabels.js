@@ -3,7 +3,8 @@ const MENU_LABELS = {
   SHOW_CONTACTS: "Контакты",
   HELP: "Помощь",
   ENTER_PHONE_MANUALLY: "Ввести телефон вручную",
-  CANCEL_FLOW: "Отменить заявку"
+  CANCEL_FLOW: "Отменить заявку",
+  REPORTS: "📊 Отчёты"
 };
 
 module.exports = {

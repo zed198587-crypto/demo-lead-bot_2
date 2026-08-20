@@ -7,7 +7,7 @@ const validators = require("../utils/validators");
 const formatters = require("../utils/formatters");
 
 function createBotApp(options = {}) {
-  const { registerAppHandlers } = options;
+  const { registerAppHandlers, app } = options;
 
   const db = initDatabase(env.DB_PATH);
   const bot = createBot(env.BOT_TOKEN);
@@ -18,7 +18,8 @@ function createBotApp(options = {}) {
       bot,
       db,
       fsm,
-      env
+      env,
+      app
     });
   }
 

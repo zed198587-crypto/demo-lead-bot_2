@@ -8,6 +8,8 @@ function createLeadRepository(db) {
       username TEXT,
       phone TEXT NOT NULL,
       booking_text TEXT,
+      booking_date TEXT,
+      booking_time TEXT,
       booked_at TEXT,
       created_at TEXT NOT NULL
     );
@@ -26,6 +28,8 @@ function createLeadRepository(db) {
     db.exec(createTableSql);
 
     ensureColumnExists("booking_text", "booking_text TEXT");
+    ensureColumnExists("booking_date", "booking_date TEXT");
+    ensureColumnExists("booking_time", "booking_time TEXT");
     ensureColumnExists("booked_at", "booked_at TEXT");
   }
 
@@ -78,18 +82,28 @@ function createLeadRepository(db) {
     };
   }
 
-  function updateBooking(leadId, bookingText) {
+  function updateBooking(leadId, bookingDate, bookingTime) {
     const booked_at = new Date().toISOString();
+
+    const bookingText = `${bookingDate} ${bookingTime}`;
 
     const stmt = db.prepare(`
       UPDATE leads
       SET
         booking_text = ?,
+        booking_date = ?,
+        booking_time = ?,
         booked_at = ?
       WHERE id = ?
     `);
 
-    stmt.run(bookingText, booked_at, leadId);
+    stmt.run(
+      bookingText,
+      bookingDate,
+      bookingTime,
+      booked_at,
+      leadId
+    );
 
     return findLeadById(leadId);
   }
@@ -103,6 +117,18 @@ function createLeadRepository(db) {
     `);
 
     return stmt.all(limit);
+  }
+
+  function getLeadsByDateRange(fromDate, toDate) {
+    const stmt = db.prepare(`
+      SELECT *
+      FROM leads
+      WHERE booking_date >= ?
+        AND booking_date <= ?
+      ORDER BY booking_date ASC, booking_time ASC
+    `);
+
+    return stmt.all(fromDate, toDate);
   }
 
   function findLeadById(id) {
@@ -120,6 +146,7 @@ function createLeadRepository(db) {
     createLead,
     updateBooking,
     getRecentLeads,
+    getLeadsByDateRange,
     findLeadById
   };
 }
