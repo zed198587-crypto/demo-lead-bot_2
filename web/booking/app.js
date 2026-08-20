@@ -221,7 +221,8 @@ confirmButton.addEventListener("click", async () => {
   const bookingData = {
     leadId,
     bookingDate,
-    bookingTime
+    bookingTime,
+    initData: tg?.initData || ""
   };
 
   try {

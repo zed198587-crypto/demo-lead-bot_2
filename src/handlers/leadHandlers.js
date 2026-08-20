@@ -1,6 +1,7 @@
 const {
   createReportService
 } = require("../services/reportService");
+const crypto = require("crypto");
 const express = require("express");
 const { validators, formatters } = require("../../core");
 const { botConfig } = require("../config/botConfig");
@@ -18,6 +19,63 @@ const {
 
 function isAdmin(userId, adminIds = []) {
   return adminIds.includes(Number(userId));
+}
+
+function validateTelegramWebAppInitData(initData, botToken) {
+  if (!initData || typeof initData !== "string") {
+    return null;
+  }
+
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+
+  if (!hash) {
+    return null;
+  }
+
+  params.delete("hash");
+
+  const dataCheckString = Array.from(params.entries())
+    .sort(([leftKey], [rightKey]) => {
+      if (leftKey < rightKey) return -1;
+      if (leftKey > rightKey) return 1;
+      return 0;
+    })
+    .map(([key, value]) => `${key}=${value}`)
+    .join("\n");
+
+  const secretKey = crypto
+    .createHmac("sha256", "WebAppData")
+    .update(botToken)
+    .digest();
+
+  const expectedHash = crypto
+    .createHmac("sha256", secretKey)
+    .update(dataCheckString)
+    .digest();
+
+  const receivedHash = Buffer.from(hash, "hex");
+
+  if (
+    receivedHash.length !== expectedHash.length ||
+    !crypto.timingSafeEqual(receivedHash, expectedHash)
+  ) {
+    return null;
+  }
+
+  const userJson = params.get("user");
+
+  if (!userJson) {
+    return null;
+  }
+
+  try {
+    const user = JSON.parse(userJson);
+
+    return Number.isInteger(Number(user.id)) ? user : null;
+  } catch {
+    return null;
+  }
 }
 
 async function notifyAdmins(bot, adminIds, text, leadId, webAppUrl) {
@@ -150,13 +208,34 @@ function registerLeadHandlers({ bot, db, fsm, env, app }) {
     leadRepository
   });
 
+  const getMainKeyboardForUser = (userId) =>
+    getMainKeyboard(isAdmin(userId, env.ADMIN_IDS));
+
   app.post("/api/booking", express.json(), async (req, res) => {
   try {
     const {
       leadId,
       bookingDate,
-      bookingTime
+      bookingTime,
+      initData
     } = req.body;
+
+    const telegramUser = validateTelegramWebAppInitData(
+      initData,
+      env.BOT_TOKEN
+    );
+
+    if (!telegramUser) {
+      return res.status(401).json({
+        error: "Не удалось подтвердить данные Telegram Web App."
+      });
+    }
+
+    if (!isAdmin(telegramUser.id, env.ADMIN_IDS)) {
+      return res.status(403).json({
+        error: "Недостаточно прав для оформления записи."
+      });
+    }
 
     const numericLeadId = Number(leadId);
 
@@ -225,7 +304,7 @@ bot.onText(/^\/start$/, async (msg) => {
   await bot.sendMessage(
     msg.chat.id,
     botConfig.welcomeMessage,
-    getMainKeyboard()
+    getMainKeyboardForUser(msg.from.id)
   );
 });
 
@@ -238,7 +317,7 @@ bot.onText(/^\/start$/, async (msg) => {
     await bot.sendMessage(
       msg.chat.id,
       "Команда доступна только администратору.",
-      getMainKeyboard()
+      getMainKeyboardForUser(msg.from.id)
     );
     return;
   }
@@ -249,7 +328,7 @@ bot.onText(/^\/start$/, async (msg) => {
     await bot.sendMessage(
       msg.chat.id,
       "Заявок пока нет.",
-      getMainKeyboard()
+      getMainKeyboardForUser(msg.from.id)
     );
     return;
   }
@@ -301,7 +380,7 @@ bot.onText(/^\/start$/, async (msg) => {
       await bot.sendMessage(
         msg.chat.id,
         "Команда доступна только администратору.",
-        getMainKeyboard()
+        getMainKeyboardForUser(msg.from.id)
       );
       return;
     }
@@ -323,7 +402,7 @@ bot.onText(/^\/start$/, async (msg) => {
       await bot.sendMessage(
         msg.chat.id,
         "На сегодня записей нет.",
-        getMainKeyboard()
+        getMainKeyboardForUser(msg.from.id)
       );
       return;
     }
@@ -351,7 +430,7 @@ bot.onText(/^\/start$/, async (msg) => {
         "",
         ...lines
       ].join("\n\n"),
-      getMainKeyboard()
+      getMainKeyboardForUser(msg.from.id)
     );
   });
 
@@ -360,7 +439,7 @@ bot.onText(/^\/start$/, async (msg) => {
     await bot.sendMessage(
       msg.chat.id,
       "Команда доступна только администратору.",
-      getMainKeyboard()
+      getMainKeyboardForUser(msg.from.id)
     );
     return;
   }
@@ -394,7 +473,7 @@ bot.onText(/^\/start$/, async (msg) => {
     await bot.sendMessage(
       msg.chat.id,
       `Не удалось создать PDF: ${error.message}`,
-      getMainKeyboard()
+      getMainKeyboardForUser(msg.from.id)
     );
   }
 });
@@ -405,13 +484,20 @@ bot.onText(/^\/start$/, async (msg) => {
     await bot.sendMessage(
       msg.chat.id,
       botConfig.cancelFlowText,
-      getMainKeyboard()
+      getMainKeyboardForUser(msg.from.id)
     );
   });
 
   bot.on("callback_query", async (query) => {
     const adminId = query.from.id;
     const data = query.data || "";
+
+    if (!isAdmin(adminId, env.ADMIN_IDS)) {
+      await bot.answerCallbackQuery(query.id, {
+        text: "Недостаточно прав."
+      });
+      return;
+    }
 
     if (data === "report:cancel") {
       await bot.answerCallbackQuery(query.id);
@@ -466,19 +552,12 @@ bot.onText(/^\/start$/, async (msg) => {
     await bot.sendMessage(
       query.message.chat.id,
       `Не удалось создать PDF: ${error.message}`,
-      getMainKeyboard()
+      getMainKeyboardForUser(adminId)
     );
   }
 
   return;
 }
-
-    if (!isAdmin(adminId, env.ADMIN_IDS)) {
-      await bot.answerCallbackQuery(query.id, {
-        text: "Недостаточно прав."
-      });
-      return;
-    }
 
     if (!data.startsWith(CALLBACKS.BOOK_LEAD_PREFIX)) {
       return;
@@ -514,7 +593,7 @@ bot.onText(/^\/start$/, async (msg) => {
         `Вы отвечаете по заявке #${lead.id}.`,
         "Отправьте клиенту дату и время записи одним сообщением."
       ].join("\n"),
-      getMainKeyboard()
+      getMainKeyboardForUser(adminId)
     );
   });
 
@@ -553,7 +632,7 @@ bot.onText(/^\/start$/, async (msg) => {
     await bot.sendMessage(
       msg.chat.id,
       buildSavedLeadText(lead),
-      getMainKeyboard()
+      getMainKeyboardForUser(msg.from.id)
     );
 
     const adminText = leadService.formatLeadForAdmin(lead);
@@ -580,7 +659,7 @@ bot.onText(/^\/start$/, async (msg) => {
           await bot.sendMessage(
             msg.chat.id,
             "Некорректные данные записи.",
-            getMainKeyboard()
+            getMainKeyboardForUser(msg.from.id)
           );
           return;
         }
@@ -595,7 +674,7 @@ bot.onText(/^\/start$/, async (msg) => {
           await bot.sendMessage(
             msg.chat.id,
             "Заявка не найдена.",
-            getMainKeyboard()
+            getMainKeyboardForUser(msg.from.id)
           );
           return;
         }
@@ -608,7 +687,7 @@ bot.onText(/^\/start$/, async (msg) => {
             `Дата: ${bookingDate}`,
             `Время: ${bookingTime}`
           ].join("\n"),
-          getMainKeyboard()
+          getMainKeyboardForUser(msg.from.id)
         );
 
         return;
@@ -619,7 +698,7 @@ bot.onText(/^\/start$/, async (msg) => {
       await bot.sendMessage(
         msg.chat.id,
         "Не удалось обработать данные записи.",
-        getMainKeyboard()
+        getMainKeyboardForUser(msg.from.id)
       );
 
       return;
@@ -657,7 +736,7 @@ bot.onText(/^\/start$/, async (msg) => {
     await bot.sendMessage(
       msg.chat.id,
       "Не найден Telegram ID клиента.",
-      getMainKeyboard()
+      getMainKeyboardForUser(msg.from.id)
     );
     fsm.clearState(msg.from.id);
     return;
@@ -684,13 +763,13 @@ bot.onText(/^\/start$/, async (msg) => {
     await bot.sendMessage(
       msg.chat.id,
       "Сообщение клиенту отправлено, запись сохранена.",
-      getMainKeyboard()
+      getMainKeyboardForUser(msg.from.id)
     );
   } catch (error) {
     await bot.sendMessage(
       msg.chat.id,
       `Не удалось отправить сообщение клиенту: ${error.message}`,
-      getMainKeyboard()
+      getMainKeyboardForUser(msg.from.id)
     );
   }
 
@@ -707,7 +786,7 @@ bot.onText(/^\/start$/, async (msg) => {
       await bot.sendMessage(
         msg.chat.id,
         botConfig.contactsMessage,
-        getMainKeyboard()
+        getMainKeyboardForUser(msg.from.id)
       );
       return;
     }
@@ -716,7 +795,7 @@ bot.onText(/^\/start$/, async (msg) => {
       await bot.sendMessage(
         msg.chat.id,
         botConfig.helpMessage,
-        getMainKeyboard()
+        getMainKeyboardForUser(msg.from.id)
       );
       return;
     }
@@ -727,7 +806,7 @@ bot.onText(/^\/start$/, async (msg) => {
       await bot.sendMessage(
         msg.chat.id,
         botConfig.cancelFlowText,
-        getMainKeyboard()
+        getMainKeyboardForUser(msg.from.id)
       );
       return;
     }
@@ -737,7 +816,7 @@ bot.onText(/^\/start$/, async (msg) => {
     await bot.sendMessage(
       msg.chat.id,
       "Раздел доступен только администратору.",
-      getMainKeyboard()
+      getMainKeyboardForUser(msg.from.id)
     );
     return;
   }
@@ -799,7 +878,7 @@ bot.onText(/^\/start$/, async (msg) => {
       await bot.sendMessage(
         msg.chat.id,
         buildSavedLeadText(lead),
-        getMainKeyboard()
+        getMainKeyboardForUser(msg.from.id)
       );
 
       const adminText = leadService.formatLeadForAdmin(lead);
@@ -822,7 +901,7 @@ bot.onText(/^\/start$/, async (msg) => {
     await bot.sendMessage(
       msg.chat.id,
       botConfig.unknownActionText,
-      getMainKeyboard()
+      getMainKeyboardForUser(msg.from.id)
     );
   });
 }
