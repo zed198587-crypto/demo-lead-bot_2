@@ -14,7 +14,7 @@ async function registerCommands(bot) {
     },
     {
       command: "clear",
-      description: "Очистить базу заявок"
+      description: "Очистить базу заявок (админ)"
     }
   ]);
 }
