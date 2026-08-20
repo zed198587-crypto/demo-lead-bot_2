@@ -1,5 +1,6 @@
 const MENU_LABELS = {
   SUBMIT_LEAD: "Оставить заявку",
+  LEADS: "📋 Заявки",
   SHOW_CONTACTS: "Контакты",
   HELP: "Помощь",
   ENTER_PHONE_MANUALLY: "Ввести телефон вручную",

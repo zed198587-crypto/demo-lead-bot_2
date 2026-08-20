@@ -35,32 +35,32 @@ function createLeadService({ leadRepository }) {
   }
 
   function formatLeadForAdmin(lead) {
-  const fullName = [lead.first_name, lead.last_name]
-    .filter(Boolean)
-    .join(" ");
+    const fullName = [lead.first_name, lead.last_name]
+      .filter(Boolean)
+      .join(" ");
 
-  const username = lead.username
-    ? `@${lead.username}`
-    : "Username не указан";
+    const username = lead.username
+      ? `@${lead.username}`
+      : "Username не указан";
 
-  return [
-    `🆕 НОВАЯ ЗАЯВКА #${lead.id}`,
-    "",
-    `👤 ${fullName || "Имя не указано"}`,
-    `📱 ${username}`,
-    "",
-    `📞 ${lead.phone || "-"}`,
-    "",
-    `🕐 ${formatters.formatDateTime(lead.created_at)}`
-  ].join("\n");
-}
+    return [
+      `🆕 НОВАЯ ЗАЯВКА #${lead.id}`,
+      "",
+      `👤 ${fullName || "Имя не указано"}`,
+      `📱 ${username}`,
+      "",
+      `📞 ${lead.phone || "-"}`,
+      "",
+      `🕐 ${formatters.formatDateTime(lead.created_at)}`
+    ].join("\n");
+  }
 
   function formatLeadsList(leads) {
   if (!leads.length) {
     return "📋 Заявок пока нет.";
   }
 
-  return [
+ return [
     "📋 ПОСЛЕДНИЕ ЗАЯВКИ",
     "",
     `Показано: ${leads.length}`,
@@ -94,6 +94,18 @@ function createLeadService({ leadRepository }) {
   ].join("\n");
 }
 
+function clearAllLeads() {
+  return leadRepository.clearAllLeads();
+}
+
+function listUnbookedLeads() {
+  return leadRepository.getUnbookedLeads();
+}
+
+function countUnbookedLeads() {
+  return leadRepository.countUnbookedLeads();
+}
+
   return {
     saveLead,
     saveBooking,
@@ -101,7 +113,10 @@ function createLeadService({ leadRepository }) {
     listLeadsByDateRange,
     getLeadById,
     formatLeadForAdmin,
-    formatLeadsList
+    formatLeadsList,
+    listUnbookedLeads,
+    countUnbookedLeads,
+    clearAllLeads,
   };
 }
 

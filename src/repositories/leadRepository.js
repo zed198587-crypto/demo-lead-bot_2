@@ -119,6 +119,14 @@ function createLeadRepository(db) {
     return stmt.all(limit);
   }
 
+  function clearAllLeads() {
+    const result = db.prepare(`
+      DELETE FROM leads
+    `).run();
+
+    return result.changes;
+  }
+
   function getLeadsByDateRange(fromDate, toDate) {
     const stmt = db.prepare(`
       SELECT *
@@ -141,13 +149,37 @@ function createLeadRepository(db) {
     return stmt.get(id) || null;
   }
 
+  function getUnbookedLeads() {
+    const stmt = db.prepare(`
+      SELECT *
+      FROM leads
+      WHERE booked_at IS NULL
+      ORDER BY id DESC
+    `);
+
+    return stmt.all();
+  }
+
+  function countUnbookedLeads() {
+    const stmt = db.prepare(`
+      SELECT COUNT(*) AS count
+      FROM leads
+      WHERE booked_at IS NULL
+    `);
+
+    return stmt.get().count;
+  }
+
   return {
     init,
     createLead,
     updateBooking,
     getRecentLeads,
+    getUnbookedLeads,
+    countUnbookedLeads,
     getLeadsByDateRange,
-    findLeadById
+    findLeadById,
+    clearAllLeads
   };
 }
 

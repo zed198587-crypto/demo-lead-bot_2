@@ -11,6 +11,10 @@ async function registerCommands(bot) {
     {
       command: "leads",
       description: "Список заявок (админ)"
+    },
+    {
+      command: "clear",
+      description: "Очистить базу заявок"
     }
   ]);
 }

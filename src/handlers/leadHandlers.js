@@ -208,8 +208,15 @@ function registerLeadHandlers({ bot, db, fsm, env, app }) {
     leadRepository
   });
 
-  const getMainKeyboardForUser = (userId) =>
-    getMainKeyboard(isAdmin(userId, env.ADMIN_IDS));
+  const getMainKeyboardForUser = (userId) => {
+    const admin = isAdmin(userId, env.ADMIN_IDS);
+
+    const unbookedCount = admin
+      ? leadService.countUnbookedLeads()
+      : 0;
+
+    return getMainKeyboard(admin, unbookedCount);
+  };
 
   app.post("/api/booking", express.json(), async (req, res) => {
   try {
@@ -312,7 +319,53 @@ bot.onText(/^\/start$/, async (msg) => {
     await startLeadFlow(bot, fsm, msg);
   });
 
-  bot.onText(/^\/leads$/, async (msg) => {
+  bot.onText(/^\/clear$/, async (msg) => {
+    if (!isAdmin(msg.from.id, env.ADMIN_IDS)) {
+      await bot.sendMessage(
+        msg.chat.id,
+        "Команда доступна только администратору.",
+        getMainKeyboardForUser(msg.from.id)
+      );
+      return;
+    }
+
+    const keyboard = {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: "🗑 Очистить базу",
+              callback_data: "clear:confirm"
+            },
+            {
+              text: "❌ Отмена",
+              callback_data: "clear:cancel"
+            }
+          ]
+        ]
+      }
+    };
+
+    await bot.sendMessage(
+      msg.chat.id,
+      [
+        "⚠️ ВНИМАНИЕ",
+        "",
+        "Вы собираетесь удалить ВСЕ заявки из базы данных.",
+        "",
+        "Это действие нельзя отменить.",
+        "",
+        "Продолжить?"
+      ].join("\n"),
+      keyboard
+    );
+  });
+
+  bot.onText(
+    new RegExp(
+      `^(?:\\/leads|${MENU_LABELS.LEADS}(?: \\(\\d+\\))?)$`
+    ),
+    async (msg) => {
   if (!isAdmin(msg.from.id, env.ADMIN_IDS)) {
     await bot.sendMessage(
       msg.chat.id,
@@ -322,21 +375,21 @@ bot.onText(/^\/start$/, async (msg) => {
     return;
   }
 
-  const leads = leadService.listRecentLeads(10);
+  const leads = leadService.listUnbookedLeads();
 
-  if (!leads.length) {
-    await bot.sendMessage(
-      msg.chat.id,
-      "Заявок пока нет.",
-      getMainKeyboardForUser(msg.from.id)
-    );
-    return;
-  }
-
+if (!leads.length) {
   await bot.sendMessage(
     msg.chat.id,
-    "Последние 10 заявок:"
+    "📋 Необработанных заявок нет.",
+    getMainKeyboardForUser(msg.from.id)
   );
+  return;
+}
+
+await bot.sendMessage(
+  msg.chat.id,
+  `📋 Необработанные заявки: ${leads.length}`
+);
 
   for (const lead of leads) {
     const fullName = [
@@ -373,65 +426,6 @@ bot.onText(/^\/start$/, async (msg) => {
       keyboard
     );
   }
-});
-
-  bot.onText(/^\/bookings$/, async (msg) => {
-    if (!isAdmin(msg.from.id, env.ADMIN_IDS)) {
-      await bot.sendMessage(
-        msg.chat.id,
-        "Команда доступна только администратору.",
-        getMainKeyboardForUser(msg.from.id)
-      );
-      return;
-    }
-
-    const today = new Date();
-
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
-
-    const todayString = `${year}-${month}-${day}`;
-
-    const bookings = leadService.listLeadsByDateRange(
-      todayString,
-      todayString
-    );
-
-    if (!bookings.length) {
-      await bot.sendMessage(
-        msg.chat.id,
-        "На сегодня записей нет.",
-        getMainKeyboardForUser(msg.from.id)
-      );
-      return;
-    }
-
-    const lines = bookings.map((lead) => {
-      const fullName = [
-        lead.first_name,
-        lead.last_name
-      ]
-        .filter(Boolean)
-        .join(" ") || "Без имени";
-
-      return [
-        `#${lead.id} — ${fullName}`,
-        `📅 ${lead.booking_date}`,
-        `🕐 ${lead.booking_time}`,
-        `📞 ${lead.phone}`
-      ].join("\n");
-    });
-
-    await bot.sendMessage(
-      msg.chat.id,
-      [
-        "📋 Записи на сегодня:",
-        "",
-        ...lines
-      ].join("\n\n"),
-      getMainKeyboardForUser(msg.from.id)
-    );
   });
 
   bot.onText(/^\/report$/, async (msg) => {
@@ -499,6 +493,46 @@ bot.onText(/^\/start$/, async (msg) => {
       return;
     }
 
+    if (data === "clear:cancel") {
+      await bot.answerCallbackQuery(query.id);
+
+      await bot.editMessageText(
+        "❌ Очистка базы отменена.",
+        {
+          chat_id: query.message.chat.id,
+          message_id: query.message.message_id
+        }
+      );
+
+      return;
+    }
+
+    if (data === "clear:confirm") {
+      await bot.answerCallbackQuery(query.id);
+
+      const deletedCount = leadService.clearAllLeads();
+
+      await bot.editMessageText(
+        [
+          "✅ База данных очищена.",
+          "",
+          `Удалено заявок: ${deletedCount}`
+        ].join("\n"),
+        {
+          chat_id: query.message.chat.id,
+          message_id: query.message.message_id
+        }
+      );
+
+      await bot.sendMessage(
+        query.message.chat.id,
+        "База очищена.",
+        getMainKeyboardForUser(query.from.id)
+      );
+
+      return;
+    }
+
     if (data === "report:cancel") {
       await bot.answerCallbackQuery(query.id);
 
@@ -528,6 +562,14 @@ bot.onText(/^\/start$/, async (msg) => {
   await bot.answerCallbackQuery(query.id, {
     text: "Формирую отчёт..."
   });
+
+  await bot.editMessageReplyMarkup(
+    { inline_keyboard: [] },
+    {
+      chat_id: query.message.chat.id,
+      message_id: query.message.message_id
+    }
+  );
 
   try {
     const report = await reportService.generateReport({
@@ -714,7 +756,7 @@ bot.onText(/^\/start$/, async (msg) => {
     text === "/cancel" ||
     text === "/lead" ||
     text === "/leads" ||
-    text === "/bookings" ||
+    text === MENU_LABELS.LEADS ||
     text === "/report"
   ) {
     return;
@@ -792,11 +834,50 @@ bot.onText(/^\/start$/, async (msg) => {
     }
 
     if (text === MENU_LABELS.HELP) {
+      const isUserAdmin = isAdmin(msg.from.id, env.ADMIN_IDS);
+
+      const adminHelpMessage = [
+        "🛠 ПОМОЩЬ АДМИНИСТРАТОРА",
+        "",
+        "📋 Заявки",
+        "Показывает все необработанные заявки.",
+        "Число в кнопке «Заявки (N)» показывает количество заявок, ожидающих оформления.",
+        "",
+        "🟡 — заявка ещё не оформлена.",
+        "🟢 — заявка оформлена.",
+        "",
+        "В каждой необработанной заявке есть кнопка «📅 Записать».",
+        "Нажмите её, чтобы выбрать дату и время записи.",
+        "",
+        "📊 Отчёты",
+        "Позволяют сформировать PDF-отчёт за выбранный период.",
+        "",
+        "🧪 /lead",
+        "Переключает интерфейс в клиентский режим.",
+        "Используется для создания заявки от имени клиента, например для тестирования или демонстрации.",
+        "",
+        "🗑 /clear",
+        "Полностью удаляет все заявки из базы данных.",
+        "Перед удалением бот запрашивает подтверждение.",
+        "⚠️ Удалённые заявки восстановить нельзя.",
+        "",
+        "❌ /cancel",
+        "Отменяет текущее действие или незавершённый сценарий.",
+        "",
+        "🏠 /start",
+        "Возвращает главное меню.",
+        "",
+        "ℹ️ Для обычной работы администратора достаточно использовать кнопки меню."
+      ].join("\n");
+
       await bot.sendMessage(
         msg.chat.id,
-        botConfig.helpMessage,
+        isUserAdmin
+          ? adminHelpMessage
+          : botConfig.helpMessage,
         getMainKeyboardForUser(msg.from.id)
       );
+
       return;
     }
 
